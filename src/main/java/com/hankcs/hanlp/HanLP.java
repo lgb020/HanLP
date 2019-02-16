@@ -14,6 +14,7 @@ package com.hankcs.hanlp;
 import com.hankcs.hanlp.corpus.dependency.CoNll.CoNLLSentence;
 import com.hankcs.hanlp.corpus.io.IIOAdapter;
 import com.hankcs.hanlp.dependency.nnparser.NeuralNetworkDependencyParser;
+import com.hankcs.hanlp.dependency.perceptron.parser.KBeamArcEagerDependencyParser;
 import com.hankcs.hanlp.dictionary.py.Pinyin;
 import com.hankcs.hanlp.dictionary.py.PinyinDictionary;
 import com.hankcs.hanlp.dictionary.ts.*;
@@ -153,12 +154,17 @@ public class HanLP
 
         /**
          * 最大熵-依存关系模型
+         * @deprecated 已废弃，请使用{@link KBeamArcEagerDependencyParser}。未来版本将不再发布该模型，并删除配置项
          */
         public static String MaxEntModelPath = "data/model/dependency/MaxEntModel.txt";
         /**
          * 神经网络依存模型路径
          */
         public static String NNParserModelPath = "data/model/dependency/NNParserModel.txt";
+        /**
+         * 感知机ArcEager依存模型路径
+         */
+        public static String PerceptronParserModelPath = "data/model/dependency/perceptron.bin";
         /**
          * CRF分词模型
          *
@@ -167,6 +173,8 @@ public class HanLP
         public static String CRFSegmentModelPath = "data/model/segment/CRFSegmentModel.txt";
         /**
          * HMM分词模型
+         *
+         * @deprecated 已废弃，请使用{@link PerceptronLexicalAnalyzer}
          */
         public static String HMMSegmentModelPath = "data/model/segment/HMMSegmentModel.bin";
         /**
@@ -184,7 +192,7 @@ public class HanLP
         /**
          * 感知机分词模型
          */
-        public static String PerceptronCWSModelPath = "data/model/perceptron/msra/cws.bin";
+        public static String PerceptronCWSModelPath = "data/model/perceptron/large/cws.bin";
         /**
          * 感知机词性标注模型
          */
@@ -227,7 +235,8 @@ public class HanLP
                 }
                 catch (Exception e)
                 {
-                    String HANLP_ROOT = System.getenv("HANLP_ROOT");
+                    String HANLP_ROOT = System.getProperty("HANLP_ROOT");
+                    if (HANLP_ROOT == null) HANLP_ROOT = System.getenv("HANLP_ROOT");
                     if (HANLP_ROOT != null)
                     {
                         HANLP_ROOT = HANLP_ROOT.trim();
@@ -280,6 +289,7 @@ public class HanLP
                 WordNatureModelPath = root + p.getProperty("WordNatureModelPath", WordNatureModelPath);
                 MaxEntModelPath = root + p.getProperty("MaxEntModelPath", MaxEntModelPath);
                 NNParserModelPath = root + p.getProperty("NNParserModelPath", NNParserModelPath);
+                PerceptronParserModelPath = root + p.getProperty("PerceptronParserModelPath", PerceptronParserModelPath);
                 CRFSegmentModelPath = root + p.getProperty("CRFSegmentModelPath", CRFSegmentModelPath);
                 HMMSegmentModelPath = root + p.getProperty("HMMSegmentModelPath", HMMSegmentModelPath);
                 CRFCWSModelPath = root + p.getProperty("CRFCWSModelPath", CRFCWSModelPath);
@@ -647,7 +657,6 @@ public class HanLP
      *                  <li>条件随机场 (crf)：分词、词性标注与命名实体识别精度都较高，适合要求较高的NLP任务</li>
      *                  <li>感知机 (perceptron)：分词、词性标注与命名实体识别，支持在线学习</li>
      *                  <li>N最短路 (nshort)：命名实体识别稍微好一些，牺牲了速度</li>
-     *                  <li>2阶隐马 (hmm2)：训练速度较CRF快</li>
      *                  </ul>
      * @return 一个分词器
      */
@@ -674,8 +683,6 @@ public class HanLP
                 logger.warning("CRF模型加载失败");
                 throw new RuntimeException(e);
             }
-        else if ("hmm2".equals(algorithm) || "二阶隐马".equals(algorithm))
-            return new HMMSegment();
         else if ("perceptron".equals(algorithm) || "感知机".equals(algorithm))
         {
             try
